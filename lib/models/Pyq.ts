@@ -29,5 +29,5 @@ const pyqSchema = new mongoose.Schema({
   ],
 });
 
-module.exports = mongoose.model("Pyq", pyqSchema);
+export default mongoose.model("Pyq", pyqSchema);
 
