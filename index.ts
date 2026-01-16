@@ -1,10 +1,18 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { Telegraf } from "telegraf";
-import mongoose from "mongoose";
-import LocalSession from "telegraf-session-local";
+import { Telegraf, session } from "telegraf";
+import { Redis } from "@telegraf/session/redis";
 import connectDB from "./lib/db.js";
+
+// Session interface
+interface SessionData {
+  branch?: string;
+  semester?: string;
+  subject?: string;
+  pyq_branch?: string;
+  pyq_sem?: string;
+}
 
 // MODELS
 import Note from "./lib/models/Note.js";
@@ -14,8 +22,13 @@ import Syllabus from "./lib/models/Syllabus.js";
 // BOT
 const bot = new Telegraf(process.env.BOT_TOKEN!);
 
-// SESSION
-bot.use(new LocalSession().middleware());
+// SESSION with Redis
+const store = Redis<SessionData>({ url: process.env.REDIS_URL! });
+bot.use(session({ 
+  store,
+  defaultSession: () => ({})
+}));
+
 
 // MONGO CONNECT
 connectDB();
