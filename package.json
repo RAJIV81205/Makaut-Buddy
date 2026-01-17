@@ -20,6 +20,8 @@
     "telegraf": "^4.16.3"
   },
   "scripts": {
-    "dev": "bun run --watch index.ts"
+    "dev": "bun run --watch index.ts",
+    "server": "bun run --watch server.ts",
+    "start:server": "bun run server.ts"
   }
 }
