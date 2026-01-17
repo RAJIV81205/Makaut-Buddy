@@ -48,10 +48,10 @@ export const SUBJECTS = {
   ],
 
   SEM5: [
-    "COMPILER_DESIGN",
-    "SOFTWARE_ENGINEERING",
-    "ARTIFICIAL_INTELLIGENCE",
-    "Introduction to Industrial Management (Humanities III)",
+    "Compiler Design",
+    "Software Engineering",
+    "Artificial Intelligence",
+    "Introduction to Industrial Management",
     "Operating Systems",
     "Object Oriented Programming"
   ],

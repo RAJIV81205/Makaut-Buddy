@@ -235,7 +235,7 @@ bot.action(/admin_pyq_sem_(.+)/, isAdmin, async (ctx) => {
       inline_keyboard: [
         ...subjects.map((s: string, index: number) => [
           {
-            text: s.replace(/_/g, " ").toUpperCase(),
+            text: s.replace(/_/g, " "),
           callback_data: `admin_pyq_subject_${ctx.match[1]}_${index}` 
           },
         ]),
