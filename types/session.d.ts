@@ -13,6 +13,7 @@ declare module 'telegraf' {
       uploadSemester?: string;
       uploadSubject?: string;
       uploadYear?: string;
+      cgpaGrades?: Record<string, number>;
     };
   }
 }
