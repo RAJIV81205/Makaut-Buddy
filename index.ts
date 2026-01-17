@@ -155,9 +155,9 @@ bot.action(/admin_note_sem_(.+)/, isAdmin, async (ctx) => {
     reply_markup: {
       inline_keyboard: [
         ...subjects.map((s: string, index: number) => [
-          {
-            text: s.replace(/_/g, " "),
-            callback_data: `admin_note_subject_${ctx.match[1]}_${index}`
+          { 
+            text: s.replace(/_/g, " "), 
+            callback_data: `admin_note_subject_${ctx.match[1]}_${index}` 
           },
         ]),
         [{ text: "🔙 Back", callback_data: `admin_note_branch_${ctx.session.uploadBranch || ""}` }],
@@ -172,16 +172,16 @@ bot.action(/admin_note_subject_(.+)_(\d+)/, isAdmin, async (ctx) => {
     ctx.reply("❌ Invalid subject selection.");
     return;
   }
-
+  
   const semesterKey = `SEM${ctx.session.uploadSemester}` as keyof typeof SUBJECTS;
   const subjects: string[] = SUBJECTS[semesterKey] || [];
   const subjectIndex = parseInt(ctx.match[2], 10);
-
+  
   if (subjectIndex < 0 || subjectIndex >= subjects.length) {
     ctx.reply("❌ Subject not found.");
     return;
   }
-
+  
   ctx.session.uploadSubject = subjects[subjectIndex];
   await safeEditMessageText(ctx, "📎 Please send the PDF file.");
 });
@@ -239,9 +239,9 @@ bot.action(/admin_pyq_sem_(.+)/, isAdmin, async (ctx) => {
           callback_data: `admin_pyq_subject_${ctx.match[1]}_${index}` 
           },
         ]),
-    [{ text: "🔙 Back", callback_data: `admin_pyq_branch_${ctx.session.uploadBranch || ""}` }],
+        [{ text: "🔙 Back", callback_data: `admin_pyq_branch_${ctx.session.uploadBranch || ""}` }],
       ],
-},
+    },
   });
 });
 
@@ -251,16 +251,16 @@ bot.action(/admin_pyq_subject_(.+)_(\d+)/, isAdmin, async (ctx) => {
     ctx.reply("❌ Invalid subject selection.");
     return;
   }
-
+  
   const semesterKey = `SEM${ctx.session.uploadSemester}` as keyof typeof SUBJECTS;
   const subjects: string[] = SUBJECTS[semesterKey] || [];
   const subjectIndex = parseInt(ctx.match[2], 10);
-
+  
   if (subjectIndex < 0 || subjectIndex >= subjects.length) {
     ctx.reply("❌ Subject not found.");
     return;
   }
-
+  
   ctx.session.uploadSubject = subjects[subjectIndex];
   ctx.reply("📅 Enter year (e.g. 2023-24)");
 });
@@ -368,7 +368,8 @@ bot.on("document", async (ctx) => {
     return;
   }
 
-  // Progress message will be handled in uploadHandler
+  ctx.reply("⏳ Uploading...");
+
   if (ctx.session.uploadType === "note") {
     if (!ctx.session.uploadBranch || !ctx.session.uploadSemester || !ctx.session.uploadSubject) {
       ctx.reply("❌ Missing upload information. Please start over.");
