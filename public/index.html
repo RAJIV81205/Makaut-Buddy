@@ -79,49 +79,38 @@
             font-weight: 600;
         }
 
-        select, input {
+        select, input, textarea {
             width: 100%;
             padding: 12px;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
             font-size: 1em;
             transition: border-color 0.3s;
+            font-family: inherit;
         }
 
-        select:focus, input:focus {
+        textarea {
+            min-height: 200px;
+            resize: vertical;
+        }
+
+        select:focus, input:focus, textarea:focus {
             outline: none;
             border-color: #667eea;
         }
 
-        .file-drop-zone {
-            border: 3px dashed #667eea;
+        .hint {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .link-input-area {
+            border: 2px solid #667eea;
             border-radius: 15px;
-            padding: 40px;
-            text-align: center;
+            padding: 20px;
             background: #f8f9ff;
-            cursor: pointer;
-            transition: all 0.3s;
             margin-bottom: 20px;
-        }
-
-        .file-drop-zone:hover, .file-drop-zone.dragover {
-            background: #eef0ff;
-            border-color: #764ba2;
-            transform: scale(1.02);
-        }
-
-        .file-drop-zone p {
-            color: #667eea;
-            font-size: 1.2em;
-            margin-bottom: 10px;
-        }
-
-        .file-drop-zone small {
-            color: #999;
-        }
-
-        input[type="file"] {
-            display: none;
         }
 
         .file-list {
@@ -138,14 +127,16 @@
             margin-bottom: 10px;
         }
 
-        .file-item .file-name {
+        .file-item .file-info {
             flex: 1;
             color: #333;
+            word-break: break-all;
         }
 
-        .file-item .file-size {
-            color: #666;
-            margin-right: 15px;
+        .file-item .file-number {
+            font-weight: 600;
+            color: #667eea;
+            margin-right: 10px;
         }
 
         .file-item .remove-btn {
@@ -156,6 +147,7 @@
             border-radius: 5px;
             cursor: pointer;
             font-size: 0.9em;
+            margin-left: 10px;
         }
 
         .file-item .remove-btn:hover {
@@ -184,32 +176,6 @@
         .upload-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 30px;
-            background: #e0e0e0;
-            border-radius: 15px;
-            overflow: hidden;
-            margin: 20px 0;
-            display: none;
-        }
-
-        .progress-bar.active {
-            display: block;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-            width: 0%;
-            transition: width 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
         }
 
         .result {
@@ -254,12 +220,17 @@
         .hidden {
             display: none;
         }
+
+        .parse-btn {
+            background: #667eea;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📚 Makaut Buddy</h1>
-        <p class="subtitle">Batch File Upload System</p>
+        <p class="subtitle">Google Drive Link Upload System</p>
 
         <div class="upload-type-selector">
             <button class="type-btn active" data-type="note">📚 Upload Notes</button>
@@ -290,23 +261,25 @@
 
             <div class="form-group hidden" id="yearGroup">
                 <label for="year">Year</label>
-                <input type="text" id="year" name="year" placeholder="e.g., 2023" required>
+                <input type="text" id="year" name="year" placeholder="e.g., 2023">
             </div>
 
-            <div class="file-drop-zone" id="dropZone">
-                <p>📎 Drag & Drop Files Here</p>
-                <small>or click to select files</small>
-                <input type="file" id="fileInput" multiple accept=".pdf">
+            <div class="link-input-area">
+                <label for="linkInput">📎 Paste Google Drive Links</label>
+                <p class="hint">Enter one link per line. Filenames will be auto-generated from subject and year.</p>
+                <p class="hint">Example:</p>
+                <p class="hint">https://drive.google.com/file/d/ABC123.../view</p>
+                <p class="hint">https://drive.google.com/file/d/XYZ789.../view</p>
+                <textarea id="linkInput" placeholder="https://drive.google.com/file/d/ABC123.../view
+https://drive.google.com/file/d/XYZ789.../view
+https://drive.google.com/file/d/DEF456.../view"></textarea>
+                <button type="button" class="upload-btn parse-btn" id="parseBtn">Parse Links</button>
             </div>
 
             <div class="file-list" id="fileList"></div>
 
-            <div class="progress-bar" id="progressBar">
-                <div class="progress-fill" id="progressFill">0%</div>
-            </div>
-
             <button type="submit" class="upload-btn" id="uploadBtn" disabled>
-                🚀 Upload Files
+                🚀 Upload Links to Database
             </button>
 
             <div class="result" id="result"></div>
@@ -316,7 +289,7 @@
     <script>
         const API_BASE = window.location.origin;
         let uploadType = 'note';
-        let selectedFiles = [];
+        let parsedLinks = [];
 
         // Initialize
         async function init() {
@@ -390,59 +363,59 @@
                     uploadType = e.target.dataset.type;
                     document.getElementById('yearGroup').classList.toggle('hidden', uploadType === 'note');
                     document.getElementById('year').required = uploadType === 'pyq';
-                    document.getElementById('result').classList.remove('success', 'error');
-                    document.getElementById('result').classList.add('hidden');
+                    document.getElementById('result').style.display = 'none';
                 });
             });
 
-            // File input
-            const fileInput = document.getElementById('fileInput');
-            const dropZone = document.getElementById('dropZone');
-
-            dropZone.addEventListener('click', () => fileInput.click());
-            fileInput.addEventListener('change', handleFileSelect);
-
-            // Drag and drop
-            dropZone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                dropZone.classList.add('dragover');
-            });
-
-            dropZone.addEventListener('dragleave', () => {
-                dropZone.classList.remove('dragover');
-            });
-
-            dropZone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                dropZone.classList.remove('dragover');
-                const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
-                addFiles(files);
-            });
+            // Parse button
+            document.getElementById('parseBtn').addEventListener('click', parseLinks);
 
             // Form submit
             document.getElementById('uploadForm').addEventListener('submit', handleSubmit);
         }
 
-        // Handle file selection
-        function handleFileSelect(e) {
-            const files = Array.from(e.target.files).filter(f => f.type === 'application/pdf');
-            addFiles(files);
+        // Extract Google Drive file ID and convert to direct download link
+        function convertToDriveDirectLink(link) {
+            const regex = /\/d\/([a-zA-Z0-9_-]+)/;
+            const match = link.match(regex);
+            if (match && match[1]) {
+                return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+            }
+            return link;
         }
 
-        // Add files to list
-        function addFiles(files) {
-            files.forEach(file => {
-                if (!selectedFiles.find(f => f.name === file.name && f.size === file.size)) {
-                    selectedFiles.push(file);
+        // Parse links from textarea
+        function parseLinks() {
+            const input = document.getElementById('linkInput').value.trim();
+            if (!input) {
+                alert('Please enter some links first!');
+                return;
+            }
+
+            const lines = input.split('\n').filter(line => line.trim());
+            parsedLinks = [];
+
+            lines.forEach((line) => {
+                const trimmedLink = line.trim();
+                if (trimmedLink.includes('drive.google.com')) {
+                    const directLink = convertToDriveDirectLink(trimmedLink);
+                    parsedLinks.push(directLink);
                 }
             });
+
+            if (parsedLinks.length === 0) {
+                alert('No valid Google Drive links found!');
+                return;
+            }
+
             updateFileList();
             updateUploadButton();
+            document.getElementById('result').style.display = 'none';
         }
 
-        // Remove file
-        function removeFile(index) {
-            selectedFiles.splice(index, 1);
+        // Remove link
+        function removeLink(index) {
+            parsedLinks.splice(index, 1);
             updateFileList();
             updateUploadButton();
         }
@@ -452,73 +425,72 @@
             const fileList = document.getElementById('fileList');
             fileList.innerHTML = '';
 
-            selectedFiles.forEach((file, index) => {
+            if (parsedLinks.length === 0) {
+                return;
+            }
+
+            const subject = document.getElementById('subject').value || 'Subject';
+            const year = document.getElementById('year').value || 'Year';
+
+            parsedLinks.forEach((link, index) => {
+                const fileName = uploadType === 'note' 
+                    ? `${subject}_Note_${index + 1}`
+                    : `${subject}_${year}_PYQ_${index + 1}`;
+
                 const item = document.createElement('div');
                 item.className = 'file-item';
                 item.innerHTML = `
-                    <span class="file-name">${file.name}</span>
-                    <span class="file-size">${formatFileSize(file.size)}</span>
-                    <button type="button" class="remove-btn" onclick="removeFile(${index})">Remove</button>
+                    <div class="file-info">
+                        <span class="file-number">#${index + 1}</span>
+                        <strong>${fileName}</strong>
+                        <br><small style="color: #666;">${link}</small>
+                    </div>
+                    <button type="button" class="remove-btn" onclick="removeLink(${index})">Remove</button>
                 `;
                 fileList.appendChild(item);
             });
         }
 
-        // Format file size
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-        }
-
         // Update upload button state
         function updateUploadButton() {
             const btn = document.getElementById('uploadBtn');
-            btn.disabled = selectedFiles.length === 0;
+            btn.disabled = parsedLinks.length === 0;
         }
 
         // Handle form submit
         async function handleSubmit(e) {
             e.preventDefault();
 
-            const formData = new FormData();
-            formData.append('branch', document.getElementById('branch').value);
-            formData.append('semester', document.getElementById('semester').value);
-            formData.append('subject', document.getElementById('subject').value);
-            
+            const payload = {
+                branch: document.getElementById('branch').value,
+                semester: document.getElementById('semester').value,
+                subject: document.getElementById('subject').value,
+                links: parsedLinks
+            };
+
             if (uploadType === 'pyq') {
-                formData.append('year', document.getElementById('year').value);
+                payload.year = document.getElementById('year').value;
             }
 
-            selectedFiles.forEach(file => {
-                formData.append('files', file);
-            });
-
             const uploadBtn = document.getElementById('uploadBtn');
-            const progressBar = document.getElementById('progressBar');
-            const progressFill = document.getElementById('progressFill');
             const result = document.getElementById('result');
 
-            // Disable button and show progress
             uploadBtn.disabled = true;
-            progressBar.classList.add('active');
-            result.classList.remove('success', 'error', 'hidden');
+            result.style.display = 'none';
 
             try {
                 const endpoint = uploadType === 'note' ? '/api/upload/notes' : '/api/upload/pyqs';
                 const response = await fetch(`${API_BASE}${endpoint}`, {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
-                    progressFill.style.width = '100%';
-                    progressFill.textContent = '100%';
-
                     let resultHTML = `
                         <h3>✅ Upload Complete!</h3>
                         <p><strong>Total:</strong> ${data.total} files</p>
@@ -540,33 +512,29 @@
                     }
 
                     result.innerHTML = resultHTML;
-                    result.classList.add('success');
-                    result.classList.remove('hidden');
+                    result.className = 'result success';
 
-                    // Clear files after successful upload
+                    // Clear after successful upload
                     setTimeout(() => {
-                        selectedFiles = [];
+                        parsedLinks = [];
                         updateFileList();
                         updateUploadButton();
+                        document.getElementById('linkInput').value = '';
                         document.getElementById('uploadForm').reset();
-                        progressBar.classList.remove('active');
-                        progressFill.style.width = '0%';
                     }, 3000);
                 } else {
                     throw new Error(data.error || 'Upload failed');
                 }
             } catch (error) {
-                progressBar.classList.remove('active');
                 result.innerHTML = `<h3>❌ Upload Failed</h3><p>${error.message}</p>`;
-                result.classList.add('error');
-                result.classList.remove('hidden');
+                result.className = 'result error';
             } finally {
                 uploadBtn.disabled = false;
             }
         }
 
-        // Make removeFile available globally
-        window.removeFile = removeFile;
+        // Make removeLink available globally
+        window.removeLink = removeLink;
 
         // Initialize on load
         init();

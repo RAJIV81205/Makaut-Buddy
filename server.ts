@@ -1,7 +1,5 @@
 import { serve } from "bun";
 import dotenv from "dotenv";
-import streamifier from "streamifier";
-import { v2 as cloudinary } from "cloudinary";
 
 import connectDB from "./lib/db.js";
 import Note from "./lib/models/Note.js";
@@ -10,44 +8,9 @@ import { BRANCHES, SEMESTERS, SUBJECTS } from "./lib/models/enums.js";
 
 dotenv.config();
 
-/* ---------------- CLOUDINARY CONFIG ---------------- */
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
-  api_key: process.env.CLOUDINARY_API_KEY!,
-  api_secret: process.env.CLOUDINARY_API_SECRET!,
-});
-
 /* ---------------- DATABASE ---------------- */
 
 connectDB();
-
-/* ---------------- CLOUDINARY UPLOAD ---------------- */
-
-async function uploadFileToCloudinary(
-  file: File,
-  fileName: string,
-  folder: string
-): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        resource_type: "raw",
-        folder,
-        overwrite: true,
-      },
-      (error, result) => {
-        if (error) return reject(error);
-        resolve(result!.secure_url);
-      }
-    );
-
-    streamifier.createReadStream(buffer).pipe(uploadStream);
-  });
-}
 
 /* ---------------- SHARED SAVE LOGIC ---------------- */
 
@@ -78,22 +41,27 @@ async function saveToBothBranches(
 /* ---------------- BATCH NOTES ---------------- */
 
 async function batchUploadNotes(
-  files: File[],
+  links: string[],
   branch: string,
   semester: string,
   subject: string
 ) {
   const results = [];
+  let successful = 0;
+  let failed = 0;
 
-  for (const file of files) {
+  for (let i = 0; i < links.length; i++) {
+    const link = links[i];
+    const fileName = `${subject}_Note_${i + 1}`;
+    
+    if (!link) {
+      failed++;
+      results.push({ fileName, success: false, error: "Invalid link" });
+      continue;
+    }
+    
     try {
-      const link = await uploadFileToCloudinary(
-        file,
-        `${branch}_${semester}_${subject}_${file.name}`,
-        `notes/${branch}/${semester}`
-      );
-
-      const fileData = { name: file.name, link };
+      const fileData = { name: fileName, link };
 
       if (branch === "CSE" || branch === "IT") {
         await saveToBothBranches(
@@ -114,35 +82,43 @@ async function batchUploadNotes(
         }
       }
 
-      results.push({ file: file.name, success: true });
+      successful++;
+      results.push({ fileName, success: true });
     } catch (err: any) {
-      results.push({ file: file.name, success: false, error: err.message });
+      failed++;
+      console.error(`Error saving ${fileName}:`, err);
+      results.push({ fileName, success: false, error: err.message });
     }
   }
 
-  return results;
+  return { results, total: links.length, successful, failed };
 }
 
 /* ---------------- BATCH PYQs ---------------- */
 
 async function batchUploadPyqs(
-  files: File[],
+  links: string[],
   branch: string,
   semester: string,
   subject: string,
   year: string
 ) {
   const results = [];
+  let successful = 0;
+  let failed = 0;
 
-  for (const file of files) {
+  for (let i = 0; i < links.length; i++) {
+    const link = links[i];
+    const fileName = `${subject}_${year}_PYQ_${i + 1}`;
+    
+    if (!link) {
+      failed++;
+      results.push({ fileName, success: false, error: "Invalid link" });
+      continue;
+    }
+    
     try {
-      const link = await uploadFileToCloudinary(
-        file,
-        `${branch}_${semester}_${subject}_${year}_${file.name}`,
-        `pyqs/${branch}/${semester}`
-      );
-
-      const fileData = { name: `${subject}_${year}`, link };
+      const fileData = { name: fileName, link };
 
       if (branch === "CSE" || branch === "IT") {
         await saveToBothBranches(
@@ -164,13 +140,16 @@ async function batchUploadPyqs(
         }
       }
 
-      results.push({ file: file.name, success: true });
+      successful++;
+      results.push({ fileName, success: true });
     } catch (err: any) {
-      results.push({ file: file.name, success: false, error: err.message });
+      failed++;
+      console.error(`Error saving ${fileName}:`, err);
+      results.push({ fileName, success: false, error: err.message });
     }
   }
 
-  return results;
+  return { results, total: links.length, successful, failed };
 }
 
 /* ---------------- CORS ---------------- */
@@ -188,11 +167,11 @@ serve({
 
   async fetch(req) {
     const url = new URL(req.url);
+    
     if (url.pathname === "/" || url.pathname === "/index.html") {
       const file = Bun.file("./public/index.html");
       return new Response(file);
     }
-
 
     if (req.method === "OPTIONS")
       return new Response(null, { headers: corsHeaders });
@@ -214,34 +193,77 @@ serve({
     /* ---------- UPLOAD NOTES ---------- */
 
     if (url.pathname === "/api/upload/notes" && req.method === "POST") {
-      const form = await req.formData();
-      const files = form.getAll("files") as File[];
+      try {
+        const body = await req.json();
+        const { branch, semester, subject, links }:any = body;
 
-      const results = await batchUploadNotes(
-        files,
-        form.get("branch") as string,
-        form.get("semester") as string,
-        form.get("subject") as string
-      );
+        if (!links || !Array.isArray(links) || links.length === 0) {
+          return Response.json(
+            { success: false, error: "No links provided" },
+            { status: 400, headers: corsHeaders }
+          );
+        }
 
-      return Response.json({ success: true, results }, { headers: corsHeaders });
+        if (!branch || !semester || !subject) {
+          return Response.json(
+            { success: false, error: "Missing required fields" },
+            { status: 400, headers: corsHeaders }
+          );
+        }
+
+        console.log(`📚 Saving ${links.length} note links for ${branch} - Sem ${semester} - ${subject}`);
+
+        const result = await batchUploadNotes(links, branch, semester, subject);
+
+        return Response.json(
+          { success: true, ...result },
+          { headers: corsHeaders }
+        );
+      } catch (error: any) {
+        console.error("Upload error:", error);
+        return Response.json(
+          { success: false, error: error.message },
+          { status: 500, headers: corsHeaders }
+        );
+      }
     }
 
     /* ---------- UPLOAD PYQS ---------- */
 
     if (url.pathname === "/api/upload/pyqs" && req.method === "POST") {
-      const form = await req.formData();
-      const files = form.getAll("files") as File[];
+      try {
+        const body = await req.json();
+        const { branch, semester, subject, year, links }:any = body;
 
-      const results = await batchUploadPyqs(
-        files,
-        form.get("branch") as string,
-        form.get("semester") as string,
-        form.get("subject") as string,
-        form.get("year") as string
-      );
+        if (!links || !Array.isArray(links) || links.length === 0) {
+          return Response.json(
+            { success: false, error: "No links provided" },
+            { status: 400, headers: corsHeaders }
+          );
+        }
 
-      return Response.json({ success: true, results }, { headers: corsHeaders });
+        if (!branch || !semester || !subject || !year) {
+          return Response.json(
+            { success: false, error: "Missing required fields" },
+            { status: 400, headers: corsHeaders }
+          );
+        }
+
+        console.log(`📝 Saving ${links.length} PYQ links for ${branch} - Sem ${semester} - ${subject} - ${year}`);
+
+        const result = await batchUploadPyqs(links, branch, semester, subject, year);
+
+        return Response.json(
+          { success: true, ...result },
+          { headers: corsHeaders }
+        );
+      } catch (error: any) {
+        console.error("Upload error:", error);
+        return Response.json(
+          { success: false, error: error.message },
+          { status: 500, headers: corsHeaders }
+        );
+      }
     }
 
     return new Response("Not Found", { status: 404 });
