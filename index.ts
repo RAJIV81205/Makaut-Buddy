@@ -262,7 +262,7 @@ bot.action(/admin_pyq_subject_(.+)_(\d+)/, isAdmin, async (ctx) => {
   }
   
   ctx.session.uploadSubject = subjects[subjectIndex];
-  ctx.reply("📅 Enter year (e.g. 2023)");
+  ctx.reply("📅 Enter year (e.g. 2023-24)");
 });
 
 /* ================= YEAR + FILE HANDLING ================= */
