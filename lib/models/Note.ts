@@ -23,6 +23,10 @@ const noteSchema = new mongoose.Schema({
       link: String,
     },
   ],
+}, {
+  timestamps: true
 });
+
+
 
 export default mongoose.model("Note", noteSchema);
