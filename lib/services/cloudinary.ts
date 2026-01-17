@@ -1,5 +1,7 @@
 import { v2 as cloudinary } from "cloudinary";
-import { Readable } from "stream";
+import { Readable, PassThrough } from "stream";
+
+type ProgressCallback = (bytesRead: number, totalBytes?: number) => void;
 
 class CloudinaryService {
   constructor() {
@@ -13,20 +15,30 @@ class CloudinaryService {
   async uploadFromStream(
     stream: NodeJS.ReadableStream,
     fileName: string,
-    folder?: string
+    folder?: string,
+    onProgress?: ProgressCallback,
+    totalBytes?: number
   ): Promise<string> {
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
+      let bytesRead = 0;
 
       stream.on("data", (chunk: Buffer) => {
         chunks.push(chunk);
+        bytesRead += chunk.length;
+        
+        // Call progress callback if provided
+        if (onProgress) {
+          onProgress(bytesRead, totalBytes);
+        }
       });
 
       stream.on("end", async () => {
         try {
           const buffer = Buffer.concat(chunks);
           
-          // Use upload method directly with buffer - ensures signed upload when API secret is configured
+          // Use upload method with buffer for signed uploads
+          // This ensures the upload is signed when API secret is configured
           const result = await cloudinary.uploader.upload(
             `data:application/pdf;base64,${buffer.toString('base64')}`,
             {
