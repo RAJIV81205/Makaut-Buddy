@@ -24,7 +24,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN!);
 
 // SESSION with Redis
 const store = Redis<SessionData>({ url: process.env.REDIS_URL! });
-bot.use(session({ 
+bot.use(session({
   store,
   defaultSession: () => ({})
 }));
@@ -40,7 +40,7 @@ const ADMINS = process.env.ADMINS?.split(",") || [];
 ------------------------------*/
 bot.start((ctx) => {
   ctx.reply(
-    "👋 Welcome to **Makaut Buddy**!\n\nChoose what you want:",
+    "👋 Welcome to Makaut Buddy!\n\nChoose what you want:",
     {
       reply_markup: {
         inline_keyboard: [
@@ -64,14 +64,14 @@ bot.action("notes", (ctx) => {
   ctx.reply("Choose Branch:", {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "CSE", callback_data: "notes_branch_CSE" }],
-        [{ text: "IT", callback_data: "notes_branch_IT" }],
-        [{ text: "ECE", callback_data: "notes_branch_ECE" }],
-        [{ text: "ME", callback_data: "notes_branch_ME" }],
-        [{ text: "EE", callback_data: "notes_branch_EE" }],
-        [{ text: "CE", callback_data: "notes_branch_CE" }],
-        [{ text: "BCA", callback_data: "notes_branch_BCA" }],
-        [{ text: "⬅ Back", callback_data: "start" }],
+        [{ text: "CSE", callback_data: "notes_branch_CSE" },
+        { text: "IT", callback_data: "notes_branch_IT" }],
+        [{ text: "ECE", callback_data: "notes_branch_ECE" },
+        { text: "ME", callback_data: "notes_branch_ME" }],
+        [{ text: "EE", callback_data: "notes_branch_EE" },
+        { text: "CE", callback_data: "notes_branch_CE" }],
+        [{ text: "BCA", callback_data: "notes_branch_BCA" },
+        { text: "⬅ Back", callback_data: "start" }],
       ],
     },
   });
