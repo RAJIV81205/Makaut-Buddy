@@ -1,6 +1,8 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+import express from "express";
+
 import { Telegraf, session } from "telegraf";
 import { Redis } from "@telegraf/session/redis";
 import connectDB from "./lib/db.js";
@@ -24,6 +26,11 @@ interface SessionData {
   uploadYear?: string;
   cgpaGrades?: Record<string, number>;
 }
+
+const PORT = 3002
+
+const app = express();
+app.use(express.json());
 
 const bot = new Telegraf(process.env.BOT_TOKEN!);
 
@@ -443,4 +450,6 @@ bot.action("cgpa", async (ctx) => {
 });
 
 bot.launch();
+app.get("/", (req, res) => res.send("Makaut Buddy is running..."));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 console.log("Makaut Buddy is LIVE 🚀");
